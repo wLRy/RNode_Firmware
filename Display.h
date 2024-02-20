@@ -415,30 +415,45 @@ void draw_disp_area() {
 
 
         disp_area.setTextColor(SSD1306_BLACK);
-        disp_area.setCursor(2, 46);
-        disp_area.print("Channel");
-        disp_area.setCursor(38, 46);
-        disp_area.print("Load:");
-        
-        disp_area.setCursor(11, 57);
-        if (total_channel_util < 0.099) {
-          //disp_area.printf("%.1f%%", airtime*100.0);
-          disp_area.printf("%.1f%%", total_channel_util*100.0);
-        } else {
-          //disp_area.printf("%.0f%%", airtime*100.0);
-          disp_area.printf("%.0f%%", total_channel_util*100.0);
-        }
-        disp_area.drawBitmap(2, 50, bm_hg_low, 5, 9, SSD1306_BLACK, SSD1306_WHITE);
 
-        disp_area.setCursor(32+11, 57);
-        if (longterm_channel_util < 0.099) {
-          //disp_area.printf("%.1f%%", longterm_airtime*100.0);
-          disp_area.printf("%.1f%%", longterm_channel_util*100.0);
-        } else {
-          //disp_area.printf("%.0f%%", longterm_airtime*100.0);
-          disp_area.printf("%.0f%%", longterm_channel_util*100.0);
-        }
-        disp_area.drawBitmap(32+2, 50, bm_hg_high, 5, 9, SSD1306_BLACK, SSD1306_WHITE);
+        #if ENABLE_LORA_TO_GPIO
+          disp_area.setCursor(2, 46);
+          disp_area.print("LtG");
+          disp_area.setCursor(25, 46);
+          disp_area.print(MY_LORA_TO_GPIO_ID);
+          disp_area.setCursor(2, 57);
+          disp_area.printf("%d:%d", last_gpio, last_gpio_value);
+          if (gpio_off_millis != 0xFFFFFFFF) {
+            disp_area.setCursor(40, 57);
+            disp_area.printf("%d", (millis() - gpio_off_millis) / 1000);
+          }
+        #else
+          disp_area.setCursor(2, 46);
+          disp_area.print("Channel");
+          disp_area.setCursor(38, 46);
+          disp_area.print("Load:");
+
+          disp_area.setCursor(11, 57);
+          if (total_channel_util < 0.099) {
+            //disp_area.printf("%.1f%%", airtime*100.0);
+            disp_area.printf("%.1f%%", total_channel_util*100.0);
+          } else {
+            //disp_area.printf("%.0f%%", airtime*100.0);
+            disp_area.printf("%.0f%%", total_channel_util*100.0);
+          }
+          disp_area.drawBitmap(2, 50, bm_hg_low, 5, 9, SSD1306_BLACK, SSD1306_WHITE);
+
+          disp_area.setCursor(32+11, 57);
+          if (longterm_channel_util < 0.099) {
+            //disp_area.printf("%.1f%%", longterm_airtime*100.0);
+            disp_area.printf("%.1f%%", longterm_channel_util*100.0);
+          } else {
+            //disp_area.printf("%.0f%%", longterm_airtime*100.0);
+            disp_area.printf("%.0f%%", longterm_channel_util*100.0);
+          }
+          disp_area.drawBitmap(32+2, 50, bm_hg_high, 5, 9, SSD1306_BLACK, SSD1306_WHITE);
+
+        #endif
 
       } else {
         if (device_signatures_ok()) {

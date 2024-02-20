@@ -414,6 +414,16 @@
     bool eeprom_ok = false;
     bool firmware_update_mode = false;
 
+	//LoRa to GPIO
+	#define ENABLE_LORA_TO_GPIO true
+	#if ENABLE_LORA_TO_GPIO
+		uint8_t last_gpio = 255;
+		uint8_t last_gpio_value = 255;
+		uint32_t last_gpio_nonce = 0;
+		uint32_t gpio_off_millis = 0xFFFFFFFF;
+		const char * MY_LORA_TO_GPIO_ID = "0001";
+	#endif
+
 	// Boot flags
 	#define START_FROM_BOOTLOADER 0x01
 	#define START_FROM_POWERON 0x02

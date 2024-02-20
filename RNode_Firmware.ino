@@ -41,6 +41,10 @@ volatile bool serial_buffering = false;
   #include "Console.h"
 #endif
 
+#if ENABLE_LORA_TO_GPIO
+  #include "LoRaToGPIO.h"
+#endif
+
 char sbuf[128];
 
 #if MCU_VARIANT == MCU_ESP32
@@ -172,6 +176,10 @@ inline void kiss_write_packet() {
     serial_write(byte);
   }
   serial_write(FEND);
+  #if ENABLE_LORA_TO_GPIO
+    parseLoRaPacketAndExecGpioCommand(pbuf, read_len);
+  #endif
+
   read_len = 0;
   #if MCU_VARIANT == MCU_ESP32
     packet_ready = false;
@@ -1229,6 +1237,10 @@ void loop() {
 
   #if HAS_BLUETOOTH
     if (!console_active && bt_ready) update_bt();
+  #endif
+
+  #if ENABLE_LORA_TO_GPIO
+    updateLoraToGpio();
   #endif
 }
 

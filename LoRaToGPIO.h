@@ -1,0 +1,83 @@
+#ifndef LORA_TO_GPIO_H
+#define LORA_TO_GPIO_H
+
+const char * GPIO_CMD_PREFIX = "gpiocmd";
+const int GPIO_CMD_PREFIX_LEN = 7;
+const char * GPIO_RESP_PREFIX = "gpiorsp";
+const int GPIO_RESP_PREFIX_LEN = 7;
+const int MY_LORA_TO_GPIO_ID_SIZE = 4;
+const bool sendResponse = false;
+
+void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
+    int i = 0;
+    for (; i < GPIO_CMD_PREFIX_LEN; i++) {
+        if (buf[i] != GPIO_CMD_PREFIX[i] || i >= len) {
+            return;
+        }
+    }
+    for (; i < GPIO_CMD_PREFIX_LEN + MY_LORA_TO_GPIO_ID_SIZE; i++) {
+        if (buf[i] != MY_LORA_TO_GPIO_ID[i - GPIO_CMD_PREFIX_LEN] || i >= len) {
+            return;
+        }
+    }
+    if (i+4 > len) {
+        return;
+    }
+
+    last_gpio_nonce = buf[i++];
+    last_gpio_nonce |= (buf[i++] << 8);
+    last_gpio_nonce |= (buf[i++] << 16);
+    last_gpio_nonce |= (buf[i++] << 24);
+
+    if (i+2 > len) {
+        return;
+    }
+    last_gpio = buf[i++];
+    last_gpio_value = buf[i++];
+    pinMode(last_gpio, OUTPUT);
+    if (last_gpio_value) {
+        digitalWrite(last_gpio, HIGH);
+        if (i + 4 <= len) {
+            //Little endian duration
+            uint32_t durationMillis = buf[i++];
+            durationMillis |= (buf[i++] << 8);
+            durationMillis |= (buf[i++] << 16);
+            durationMillis |= (buf[i++] << 24);
+            gpio_off_millis = millis() + durationMillis;
+        }
+    } else {
+        digitalWrite(last_gpio, LOW);
+    }
+}
+
+void serialCallback(uint8_t sbyte);
+
+void updateLoraToGpio() {
+    if (millis() > gpio_off_millis) {
+        last_gpio_value = 255;
+        digitalWrite(last_gpio, LOW);
+        gpio_off_millis = 0xFFFFFFFF;
+    }
+    if (last_gpio_nonce != 0) {
+        //simulate serial input
+        serialCallback(FEND);
+        serialCallback(CMD_DATA);
+        for (int i = 0; i < GPIO_RESP_PREFIX_LEN; i++) {
+            serialCallback(GPIO_RESP_PREFIX[i]);
+        }
+        for (int i = 0; i < MY_LORA_TO_GPIO_ID_SIZE; i++) {
+            serialCallback(MY_LORA_TO_GPIO_ID[i]);
+        }
+        serialCallback(last_gpio_nonce & 0xff);
+        serialCallback((last_gpio_nonce >> 8) & 0xff);
+        serialCallback((last_gpio_nonce >> 16) & 0xff);
+        serialCallback((last_gpio_nonce >> 24) & 0xff);
+        serialCallback(FEND);
+        last_gpio_nonce = 0;
+    }
+}
+
+#endif
+
+
+
