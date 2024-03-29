@@ -3,6 +3,8 @@
 
 const char * GPIO_CMD_PREFIX = "gpiocmd";
 const int GPIO_CMD_PREFIX_LEN = 7;
+const uint8_t CMD_WRITE = 1;
+const uint8_t CMD_READ = 2;
 const char * GPIO_RESP_PREFIX = "gpiorsp";
 const int GPIO_RESP_PREFIX_LEN = 7;
 const int MY_LORA_TO_GPIO_ID_SIZE = 4;
@@ -33,20 +35,23 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
         return;
     }
     last_gpio = buf[i++];
-    last_gpio_value = buf[i++];
-    pinMode(last_gpio, OUTPUT);
-    if (last_gpio_value) {
-        digitalWrite(last_gpio, HIGH);
-        if (i + 4 <= len) {
-            //Little endian duration
-            uint32_t durationMillis = buf[i++];
-            durationMillis |= (buf[i++] << 8);
-            durationMillis |= (buf[i++] << 16);
-            durationMillis |= (buf[i++] << 24);
-            gpio_off_millis = millis() + durationMillis;
+    last_gpio_command = buf[i++];
+    if (last_gpio_command == CMD_WRITE) {
+        last_gpio_value = buf[i++];
+        pinMode(last_gpio, OUTPUT);
+        if (last_gpio_value) {
+            digitalWrite(last_gpio, HIGH);
+            if (i + 4 <= len) {
+                //Little endian duration
+                uint32_t durationMillis = buf[i++];
+                durationMillis |= (buf[i++] << 8);
+                durationMillis |= (buf[i++] << 16);
+                durationMillis |= (buf[i++] << 24);
+                gpio_off_millis = millis() + durationMillis;
+            }
+        } else {
+            digitalWrite(last_gpio, LOW);
         }
-    } else {
-        digitalWrite(last_gpio, LOW);
     }
 }
 
@@ -72,6 +77,11 @@ void updateLoraToGpio() {
         serialCallback((last_gpio_nonce >> 8) & 0xff);
         serialCallback((last_gpio_nonce >> 16) & 0xff);
         serialCallback((last_gpio_nonce >> 24) & 0xff);
+        if (last_gpio_command == CMD_READ) {
+            pinMode(last_gpio, INPUT);
+            last_gpio_value = digitalRead(last_gpio) == HIGH;
+            serialCallback(last_gpio_value);
+        }
         serialCallback(FEND);
         last_gpio_nonce = 0;
     }
