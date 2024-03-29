@@ -5,10 +5,14 @@ const char * GPIO_CMD_PREFIX = "gpiocmd";
 const int GPIO_CMD_PREFIX_LEN = 7;
 const uint8_t CMD_WRITE = 1;
 const uint8_t CMD_READ = 2;
+const uint8_t CMD_DISPLAY_INTENSITY = 3;
 const char * GPIO_RESP_PREFIX = "gpiorsp";
 const int GPIO_RESP_PREFIX_LEN = 7;
 const int MY_LORA_TO_GPIO_ID_SIZE = 4;
 const bool sendResponse = false;
+
+void serialCallback(uint8_t sbyte);
+void di_conf_save(uint8_t dint);
 
 void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
     int i = 0;
@@ -34,8 +38,18 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
     if (i+2 > len) {
         return;
     }
-    last_gpio = buf[i++];
     last_gpio_command = buf[i++];
+    if (last_gpio_command == CMD_DISPLAY_INTENSITY) {
+        display_intensity = buf[i++];
+        if (i < len) {
+            bool saveConf = buf[i++];
+            if (saveConf) {
+                di_conf_save(display_intensity);
+            }
+        }
+        return;
+    }
+    last_gpio = buf[i++];
     if (last_gpio_command == CMD_WRITE) {
         last_gpio_value = buf[i++];
         pinMode(last_gpio, OUTPUT);
@@ -54,8 +68,6 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
         }
     }
 }
-
-void serialCallback(uint8_t sbyte);
 
 void updateLoraToGpio() {
     if (millis() > gpio_off_millis) {
