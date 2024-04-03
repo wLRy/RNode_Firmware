@@ -6,6 +6,7 @@ const int GPIO_CMD_PREFIX_LEN = 7;
 const uint8_t CMD_WRITE = 1;
 const uint8_t CMD_READ = 2;
 const uint8_t CMD_DISPLAY_INTENSITY = 3;
+const uint8_t CMD_READ_BATTERY = 4;
 const char * GPIO_RESP_PREFIX = "gpiorsp";
 const int GPIO_RESP_PREFIX_LEN = 7;
 const int MY_LORA_TO_GPIO_ID_SIZE = 4;
@@ -27,6 +28,7 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
         }
     }
     if (i+4 > len) {
+        last_gpio_command = 255;
         return;
     }
 
@@ -35,7 +37,8 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
     last_gpio_nonce |= (buf[i++] << 16);
     last_gpio_nonce |= (buf[i++] << 24);
 
-    if (i+2 > len) {
+    if (i >= len) {
+        last_gpio_command = 255;
         return;
     }
     last_gpio_command = buf[i++];
@@ -47,6 +50,9 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
                 di_conf_save(display_intensity);
             }
         }
+        return;
+    }
+    if (i >= len) {
         return;
     }
     last_gpio = buf[i++];
@@ -93,6 +99,12 @@ void updateLoraToGpio() {
             pinMode(last_gpio, INPUT);
             last_gpio_value = digitalRead(last_gpio) == HIGH;
             serialCallback(last_gpio_value);
+        } else if (last_gpio_command == CMD_READ_BATTERY) {
+            last_gpio_value = (uint8_t)int(battery_percent);
+            serialCallback(last_gpio_value);
+            uint32_t voltage = uint32_t(battery_voltage * 1000);
+            serialCallback(voltage & 0xff);
+            serialCallback((voltage >> 8) & 0xff);
         }
         serialCallback(FEND);
         last_gpio_nonce = 0;

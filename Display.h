@@ -419,10 +419,10 @@ void draw_disp_area() {
         #if ENABLE_LORA_TO_GPIO
           disp_area.setCursor(2, 46);
           disp_area.print(MY_LORA_TO_GPIO_ID);
-          disp_area.setCursor(30, 46);
-          disp_area.printf("%d", last_gpio_nonce);
+          disp_area.setCursor(28, 46);
+          disp_area.printf("n%d", last_gpio_nonce);
           disp_area.setCursor(2, 57);
-          disp_area.printf("%x:%d:%x", last_gpio_command, last_gpio, last_gpio_value);
+          disp_area.printf("%d:%d:%d", last_gpio_command, last_gpio, last_gpio_value);
           if (gpio_off_millis != 0xFFFFFFFF) {
             disp_area.setCursor(40, 57);
             disp_area.printf("%d", (gpio_off_millis - millis()) / 1000);
