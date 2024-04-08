@@ -422,6 +422,7 @@
 		uint8_t last_gpio_command = 255;
 		uint32_t last_gpio_nonce = 0;
 		uint32_t gpio_off_millis = 0xFFFFFFFF;
+		uint32_t reset_millis = 0xFFFFFFFF;
 		const char * MY_LORA_TO_GPIO_ID = "0003";
 	#endif
 

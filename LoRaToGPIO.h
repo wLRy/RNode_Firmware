@@ -7,10 +7,10 @@ const uint8_t CMD_WRITE = 1;
 const uint8_t CMD_READ = 2;
 const uint8_t CMD_DISPLAY_INTENSITY = 3;
 const uint8_t CMD_READ_BATTERY = 4;
+const uint8_t CMD_RESTART = 5;
 const char * GPIO_RESP_PREFIX = "gpiorsp";
 const int GPIO_RESP_PREFIX_LEN = 7;
 const int MY_LORA_TO_GPIO_ID_SIZE = 4;
-const bool sendResponse = false;
 
 void serialCallback(uint8_t sbyte);
 void di_conf_save(uint8_t dint);
@@ -42,6 +42,10 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
         return;
     }
     last_gpio_command = buf[i++];
+    if (last_gpio_command == CMD_RESTART) {
+        reset_millis = millis() + 3000;
+        return;
+    }
     if (last_gpio_command == CMD_DISPLAY_INTENSITY) {
         display_intensity = buf[i++];
         if (i < len) {
@@ -76,11 +80,17 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
 }
 
 void updateLoraToGpio() {
-    if (millis() > gpio_off_millis) {
+    uint32_t currentTime = millis();
+    if (currentTime > gpio_off_millis) {
         last_gpio_value = 255;
         digitalWrite(last_gpio, LOW);
         gpio_off_millis = 0xFFFFFFFF;
     }
+    if (currentTime > reset_millis) {
+        reset_millis = 0xFFFFFFFF;
+        hard_reset();
+    }
+
     if (last_gpio_nonce != 0) {
         //simulate serial input
         serialCallback(FEND);
@@ -106,6 +116,11 @@ void updateLoraToGpio() {
             serialCallback(voltage & 0xff);
             serialCallback((voltage >> 8) & 0xff);
         }
+        serialCallback(currentTime & 0xff);
+        serialCallback((currentTime >> 8) & 0xff);
+        serialCallback((currentTime >> 16) & 0xff);
+        serialCallback((currentTime >> 24) & 0xff);
+
         serialCallback(FEND);
         last_gpio_nonce = 0;
     }
