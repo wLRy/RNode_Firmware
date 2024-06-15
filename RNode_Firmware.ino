@@ -33,7 +33,7 @@ volatile uint16_t queued_bytes = 0;
 volatile uint16_t queue_cursor = 0;
 volatile uint16_t current_packet_start = 0;
 volatile bool serial_buffering = false;
-#if HAS_BLUETOOTH
+#if HAS_BLUETOOTH || HAS_BLE == true
   bool bt_init_ran = false;
 #endif
 
@@ -60,19 +60,39 @@ void setup() {
     }
   #endif
 
-  // Seed the PRNG
-  randomSeed(analogRead(0));
+  // Seed the PRNG for CSMA R-value selection
+  # if MCU_VARIANT == MCU_ESP32
+    // On ESP32, get the seed value from the
+    // hardware RNG
+    int seed_val = (int)esp_random();
+  #else
+    // Otherwise, get a pseudo-random seed
+    // value from an unconnected analog pin
+    int seed_val = analogRead(0);
+  #endif
+  randomSeed(seed_val);
 
   // Initialise serial communication
   memset(serialBuffer, 0, sizeof(serialBuffer));
   fifo_init(&serialFIFO, serialBuffer, CONFIG_UART_BUFFER_SIZE);
 
   Serial.begin(serial_baudrate);
-  while (!Serial);
+
+  #if BOARD_MODEL != BOARD_RAK4631 && BOARD_MODEL != BOARD_RNODE_NG_22
+  // Some boards need to wait until the hardware UART is set up before booting
+  // the full firmware. In the case of the RAK4631, the line below will wait
+  // until a serial connection is actually established with a master. Thus, it
+  // is disabled on this platform.
+    while (!Serial);
+  #endif
 
   serial_interrupt_init();
 
   // Configure input and output pins
+  #if HAS_INPUT
+    input_init();
+  #endif
+
   #if HAS_NP == false
     pinMode(pin_led_rx, OUTPUT);
     pinMode(pin_led_tx, OUTPUT);
@@ -138,7 +158,11 @@ void setup() {
   #endif
 
   #if HAS_DISPLAY
+    #if HAS_EEPROM
     if (EEPROM.read(eeprom_addr(ADDR_CONF_DSET)) != CONF_OK_BYTE) {
+    #elif MCU_VARIANT == MCU_NRF52
+    if (eeprom_read(eeprom_addr(ADDR_CONF_DSET)) != CONF_OK_BYTE) {
+    #endif
       eeprom_update(eeprom_addr(ADDR_CONF_DSET), CONF_OK_BYTE);
       eeprom_update(eeprom_addr(ADDR_CONF_DINT), 0xFF);
     }
@@ -151,12 +175,9 @@ void setup() {
       pmu_ready = init_pmu();
     #endif
 
-    #if HAS_BLUETOOTH
+    #if HAS_BLUETOOTH || HAS_BLE == true
       bt_init();
       bt_init_ran = true;
-    #elif HAS_BLE
-      // TODO: Implement BLE on ESP32S3 instead of this hack
-      bt_ready = true;
     #endif
 
     if (console_active) {
@@ -901,7 +922,7 @@ void serialCallback(uint8_t sbyte) {
           }
       #endif
     } else if (command == CMD_BT_CTRL) {
-      #if HAS_BLUETOOTH
+      #if HAS_BLUETOOTH || HAS_BLE
         if (sbyte == 0x00) {
           bt_stop();
           bt_conf_save(false);
@@ -1098,7 +1119,7 @@ void validate_status() {
         if (eeprom_checksum_valid()) {
           eeprom_ok = true;
           if (modem_installed) {
-            #if PLATFORM == PLATFORM_ESP32
+            #if PLATFORM == PLATFORM_ESP32 || PLATFORM == PLATFORM_NRF52
               if (device_init()) {
                 hw_ready = true;
               } else {
@@ -1280,9 +1301,34 @@ void loop() {
     if (pmu_ready) update_pmu();
   #endif
 
-  #if HAS_BLUETOOTH
+  #if HAS_BLUETOOTH || HAS_BLE == true
     if (!console_active && bt_ready) update_bt();
   #endif
+
+  #if HAS_INPUT
+    input_read();
+  #endif
+}
+
+void sleep_now() {
+  #if HAS_SLEEP == true
+    #if BOARD_MODEL == BOARD_RNODE_NG_22
+      display_intensity = 0;
+      update_display(true);
+    #endif
+    #if PIN_DISP_SLEEP >= 0
+      pinMode(PIN_DISP_SLEEP, OUTPUT);
+      digitalWrite(PIN_DISP_SLEEP, DISP_SLEEP_LEVEL);
+    #endif
+    esp_sleep_enable_ext0_wakeup(PIN_WAKEUP, WAKEUP_LEVEL);
+    esp_deep_sleep_start();
+  #endif
+}
+
+void button_event(uint8_t event, unsigned long duration) {
+  if (duration > 2000) {
+    sleep_now();
+  }
 }
 
 volatile bool serial_polling = false;
@@ -1312,7 +1358,7 @@ void buffer_serial() {
 
     uint8_t c = 0;
 
-    #if HAS_BLUETOOTH
+    #if HAS_BLUETOOTH || HAS_BLE == true
     while (
       c < MAX_CYCLES &&
       ( (bt_state != BT_STATE_CONNECTED && Serial.available()) || (bt_state == BT_STATE_CONNECTED && SerialBT.available()) )
@@ -1327,7 +1373,7 @@ void buffer_serial() {
         if (!fifo_isfull_locked(&serialFIFO)) {
           fifo_push_locked(&serialFIFO, Serial.read());
         }
-      #elif HAS_BLUETOOTH
+      #elif HAS_BLUETOOTH || HAS_BLE == true
         if (bt_state == BT_STATE_CONNECTED) {
           if (!fifo_isfull(&serialFIFO)) {
             fifo_push(&serialFIFO, SerialBT.read());

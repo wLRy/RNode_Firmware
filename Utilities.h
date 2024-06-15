@@ -43,11 +43,15 @@ sx128x *LoRa = &sx128x_modem;
 #include "Framing.h"
 #include "MD5.h"
 
+#if !HAS_EEPROM && MCU_VARIANT == MCU_NRF52
+uint8_t eeprom_read(uint32_t mapped_addr);
+#endif
+
 #if HAS_DISPLAY == true
   #include "Display.h"
 #endif
 
-#if HAS_BLUETOOTH == true
+#if HAS_BLUETOOTH == true || HAS_BLE == true
 	void kiss_indicate_btpin();
   #include "Bluetooth.h"
 #endif
@@ -56,11 +60,20 @@ sx128x *LoRa = &sx128x_modem;
   #include "Power.h"
 #endif
 
+#if HAS_INPUT == true
+	#include "Input.h"
+#endif
+
 #if MCU_VARIANT == MCU_ESP32 || MCU_VARIANT == MCU_NRF52
 	#include "Device.h"
 #endif
 #if MCU_VARIANT == MCU_ESP32
-	#if BOARD_MODEL != BOARD_RNODE_NG_22
+  #if BOARD_MODEL == BOARD_HELTEC32_V3
+    //https://github.com/espressif/esp-idf/issues/8855
+    #include "hal/wdt_hal.h"
+	#elif BOARD_MODEL == BOARD_RNODE_NG_22
+		#include "hal/wdt_hal.h"
+  #else BOARD_MODEL != BOARD_RNODE_NG_22
 	  #include "soc/rtc_wdt.h"
 	#endif
   #define ISR_VECT IRAM_ATTR
@@ -192,6 +205,11 @@ uint8_t boot_vector = 0x00;
 			void led_tx_on()  { digitalWrite(pin_led_tx, HIGH); }
 			void led_tx_off() { digitalWrite(pin_led_tx, LOW); }
 		#endif
+	#elif BOARD_MODEL == BOARD_HELTEC32_V3
+			void led_rx_on()  { digitalWrite(pin_led_rx, HIGH); }
+			void led_rx_off() {	digitalWrite(pin_led_rx, LOW); }
+			void led_tx_on()  { digitalWrite(pin_led_tx, HIGH); }
+			void led_tx_off() { digitalWrite(pin_led_tx, LOW); }
 	#elif BOARD_MODEL == BOARD_LORA32_V2_1
 		void led_rx_on()  { digitalWrite(pin_led_rx, HIGH); }
 		void led_rx_off() {	digitalWrite(pin_led_rx, LOW); }
@@ -209,7 +227,7 @@ uint8_t boot_vector = 0x00;
 		void led_tx_off() { digitalWrite(pin_led_tx, LOW); }
 	#endif
 #elif MCU_VARIANT == MCU_NRF52
-    #if BOARD_MODEL == BOARD_RAK4630
+    #if BOARD_MODEL == BOARD_RAK4631
 		void led_rx_on()  { digitalWrite(pin_led_rx, HIGH); }
 		void led_rx_off() {	digitalWrite(pin_led_rx, LOW); }
 		void led_tx_on()  { digitalWrite(pin_led_tx, HIGH); }
@@ -226,7 +244,7 @@ void hard_reset(void) {
 	#elif MCU_VARIANT == MCU_ESP32
 		ESP.restart();
 	#elif MCU_VARIANT == MCU_NRF52
-        // currently not possible to restart on this platform
+        NVIC_SystemReset();
 	#endif
 }
 
@@ -619,7 +637,7 @@ int8_t  led_standby_direction = 0;
 #endif
 
 void serial_write(uint8_t byte) {
-	#if HAS_BLUETOOTH
+	#if HAS_BLUETOOTH || HAS_BLE == true
 		if (bt_state != BT_STATE_CONNECTED) {
 			Serial.write(byte);
 		} else {
@@ -819,7 +837,7 @@ void kiss_indicate_battery() {
 }
 
 void kiss_indicate_btpin() {
-	#if HAS_BLUETOOTH
+	#if HAS_BLUETOOTH || HAS_BLE == true
 		serial_write(FEND);
 		serial_write(CMD_BT_PIN);
 		escaped_serial_write(bt_ssp_pin>>24);
@@ -1044,6 +1062,9 @@ int getTxPower() {
 
 void setTXPower() {
 	if (radio_online) {
+		if (model == MODEL_11) LoRa->setTxPower(lora_txp, PA_OUTPUT_RFO_PIN);
+		if (model == MODEL_12) LoRa->setTxPower(lora_txp, PA_OUTPUT_RFO_PIN);
+
 		if (model == MODEL_A1) LoRa->setTxPower(lora_txp, PA_OUTPUT_PA_BOOST_PIN);
 		if (model == MODEL_A2) LoRa->setTxPower(lora_txp, PA_OUTPUT_PA_BOOST_PIN);
 		if (model == MODEL_A3) LoRa->setTxPower(lora_txp, PA_OUTPUT_RFO_PIN);
@@ -1200,6 +1221,15 @@ void kiss_dump_eeprom() {
 	serial_write(FEND);
 }
 
+#if !HAS_EEPROM && MCU_VARIANT == MCU_NRF52
+void eeprom_flush() {
+    // sync file contents to flash
+    file.close();
+    file.open(EEPROM_FILE, FILE_O_WRITE);
+    written_bytes = 0;
+}
+#endif
+
 void eeprom_update(int mapped_addr, uint8_t byte) {
 	#if MCU_VARIANT == MCU_1284P || MCU_VARIANT == MCU_2560
 		EEPROM.update(mapped_addr, byte);
@@ -1209,6 +1239,8 @@ void eeprom_update(int mapped_addr, uint8_t byte) {
 			EEPROM.commit();
 		}
     #elif !HAS_EEPROM && MCU_VARIANT == MCU_NRF52
+        // todo: clean up this implementation, writing one byte and syncing
+        // each time is really slow, but this is also suboptimal
         uint8_t read_byte;
         void* read_byte_ptr = &read_byte;
         file.seek(mapped_addr);
@@ -1218,23 +1250,21 @@ void eeprom_update(int mapped_addr, uint8_t byte) {
             file.write(byte);
         }
         written_bytes++;
+        
+        if ((mapped_addr - eeprom_addr(0)) == ADDR_INFO_LOCK) {
+            #if !HAS_EEPROM && MCU_VARIANT == MCU_NRF52
+                // have to do a flush because we're only writing 1 byte and it syncs after 4
+                eeprom_flush();
+            #endif
+        }
 
-        if (written_bytes >= 8) {
+        if (written_bytes >= 4) {
             file.close();
             file.open(EEPROM_FILE, FILE_O_WRITE);
             written_bytes = 0;
         }
 	#endif
 }
-
-#if !HAS_EEPROM && MCU_VARIANT == MCU_NRF52
-void eeprom_flush() {
-    // sync file contents to flash
-    file.close();
-    file.open(EEPROM_FILE, FILE_O_WRITE);
-    written_bytes = 0;
-}
-#endif
 
 void eeprom_write(uint8_t addr, uint8_t byte) {
 	if (!eeprom_info_locked() && addr >= 0 && addr < EEPROM_RESERVED) {
@@ -1273,9 +1303,9 @@ bool eeprom_product_valid() {
 	#if PLATFORM == PLATFORM_AVR
 	if (rval == PRODUCT_RNODE || rval == PRODUCT_HMBRW) {
 	#elif PLATFORM == PLATFORM_ESP32
-	if (rval == PRODUCT_RNODE || rval == BOARD_RNODE_NG_20 || rval == BOARD_RNODE_NG_21 || rval == PRODUCT_HMBRW || rval == PRODUCT_TBEAM || rval == PRODUCT_T32_10 || rval == PRODUCT_T32_20 || rval == PRODUCT_T32_21 || rval == PRODUCT_H32_V2) {
+	if (rval == PRODUCT_RNODE || rval == BOARD_RNODE_NG_20 || rval == BOARD_RNODE_NG_21 || rval == PRODUCT_HMBRW || rval == PRODUCT_TBEAM || rval == PRODUCT_T32_10 || rval == PRODUCT_T32_20 || rval == PRODUCT_T32_21 || rval == PRODUCT_H32_V2 || rval == PRODUCT_H32_V3) {
 	#elif PLATFORM == PLATFORM_NRF52
-	if (rval == PRODUCT_HMBRW) {
+	if (rval == PRODUCT_RAK4631 || rval == PRODUCT_HMBRW) {
 	#else
 	if (false) {
 	#endif
@@ -1311,8 +1341,10 @@ bool eeprom_model_valid() {
 	if (model == MODEL_B4 || model == MODEL_B9) {
 	#elif BOARD_MODEL == BOARD_HELTEC32_V2
 	if (model == MODEL_C4 || model == MODEL_C9) {
-    #elif BOARD_MODEL == BOARD_RAK4630
-    if (model == MODEL_FF) {
+	#elif BOARD_MODEL == BOARD_HELTEC32_V3
+	if (model == MODEL_C5 || model == MODEL_CA) {
+    #elif BOARD_MODEL == BOARD_RAK4631
+    if (model == MODEL_11 || model == MODEL_12) {
 	#elif BOARD_MODEL == BOARD_HUZZAH32
 	if (model == MODEL_FF) {
 	#elif BOARD_MODEL == BOARD_GENERIC_ESP32
