@@ -32,9 +32,19 @@
   #define DISP_ADDR 0x3C
   #define SCL_OLED 15
   #define SDA_OLED 4
+#elif BOARD_MODEL == BOARD_HELTEC32_V3
+  #define DISP_RST 21
+  #define DISP_ADDR 0x3C
+  #define SCL_OLED 18
+  #define SDA_OLED 17
 #elif BOARD_MODEL == BOARD_RNODE_NG_21
   #define DISP_RST -1
   #define DISP_ADDR 0x3C
+#elif BOARD_MODEL == BOARD_RNODE_NG_22
+  #define DISP_RST 21
+  #define DISP_ADDR 0x3C
+  #define SCL_OLED 17
+  #define SDA_OLED 18
 #else
   #define DISP_RST -1
   #define DISP_ADDR 0x3C
@@ -99,7 +109,21 @@ bool display_init() {
       digitalWrite(pin_display_en, LOW);
       delay(50);
       digitalWrite(pin_display_en, HIGH);
+    #elif BOARD_MODEL == BOARD_RNODE_NG_22
+      Wire.begin(SDA_OLED, SCL_OLED);
     #elif BOARD_MODEL == BOARD_HELTEC32_V2
+      Wire.begin(SDA_OLED, SCL_OLED);
+    #elif BOARD_MODEL == BOARD_HELTEC32_V3
+      // enable vext / pin 36
+      pinMode(Vext, OUTPUT);
+      digitalWrite(Vext, LOW);
+      delay(50);
+      int pin_display_en = 21;
+      pinMode(pin_display_en, OUTPUT);
+      digitalWrite(pin_display_en, LOW);
+      delay(50);
+      digitalWrite(pin_display_en, HIGH);
+      delay(50);
       Wire.begin(SDA_OLED, SCL_OLED);
     #elif BOARD_MODEL == BOARD_LORA32_V1_0
       int pin_display_en = 16;
@@ -110,7 +134,11 @@ bool display_init() {
     #endif
 
     #if DISP_CUSTOM_ADDR == true
+      #if HAS_EEPROM
       uint8_t display_address = EEPROM.read(eeprom_addr(ADDR_CONF_DADR));
+      #elif MCU_VARIANT == MCU_NRF52
+      uint8_t display_address = eeprom_read(eeprom_addr(ADDR_CONF_DADR));
+      #endif
       if (display_address == 0xFF) display_address = DISP_ADDR;
     #else
       uint8_t display_address = DISP_ADDR;
@@ -142,6 +170,12 @@ bool display_init() {
       #elif BOARD_MODEL == BOARD_HELTEC32_V2
         disp_mode = DISP_MODE_PORTRAIT;
         display.setRotation(1);
+      #elif BOARD_MODEL == BOARD_HELTEC32_V3
+        disp_mode = DISP_MODE_PORTRAIT;
+        // Antenna conx up
+        display.setRotation(1);
+        // USB-C up
+        // display.setRotation(3);
       #else
         disp_mode = DISP_MODE_PORTRAIT;
         display.setRotation(3);
@@ -158,7 +192,11 @@ bool display_init() {
       disp_area.cp437(true);
       display.cp437(true);
 
-      display_intensity = EEPROM.read(eeprom_addr(ADDR_CONF_DINT));
+      #if HAS_EEPROM
+      uint8_t display_intensity = EEPROM.read(eeprom_addr(ADDR_CONF_DINT));
+      #elif MCU_VARIANT == MCU_NRF52
+      uint8_t display_intensity = eeprom_read(eeprom_addr(ADDR_CONF_DINT));
+      #endif
 
       return true;
     }
@@ -467,7 +505,7 @@ void draw_disp_area() {
         if (!device_firmware_ok()) {
           disp_area.drawBitmap(0, 37, bm_fw_corrupt, disp_area.width(), 27, SSD1306_WHITE, SSD1306_BLACK);
         } else {
-          if (!sx1276_installed) {
+          if (!modem_installed) {
             disp_area.drawBitmap(0, 37, bm_no_radio, disp_area.width(), 27, SSD1306_WHITE, SSD1306_BLACK);
           } else {
             disp_area.drawBitmap(0, 37, bm_hwfail, disp_area.width(), 27, SSD1306_WHITE, SSD1306_BLACK);
@@ -541,17 +579,26 @@ void update_disp_area() {
   }
 }
 
-void update_display() {
-  if (millis()-last_disp_update >= disp_update_interval) {
+void update_display(bool blank = false) {
+  if (blank) {
     if (display_contrast != display_intensity) {
       display_contrast = display_intensity;
       set_contrast(&display, display_contrast);
     }
     display.clearDisplay();
-    update_stat_area();
-    update_disp_area();
-    display.display();
-    last_disp_update = millis();
+    display.display();    
+  } else {
+    if (millis()-last_disp_update >= disp_update_interval) {
+      if (display_contrast != display_intensity) {
+        display_contrast = display_intensity;
+        set_contrast(&display, display_contrast);
+      }
+      display.clearDisplay();
+      update_stat_area();
+      update_disp_area();
+      display.display();
+      last_disp_update = millis();
+    }
   }
 }
 

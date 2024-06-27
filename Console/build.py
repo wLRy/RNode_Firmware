@@ -4,10 +4,10 @@ import sys
 import shutil
 
 packages = {
-    "rns": "rns-0.7.0-py3-none-any.whl",
-    "nomadnet": "nomadnet-0.4.6-py3-none-any.whl",
-    "lxmf": "lxmf-0.3.9-py3-none-any.whl",
-    "rnsh": "rnsh-0.1.3-py3-none-any.whl",
+    "rns": "rns-0.7.5-py3-none-any.whl",
+    "nomadnet": "nomadnet-0.4.9-py3-none-any.whl",
+    "lxmf": "lxmf-0.4.3-py3-none-any.whl",
+    "rnsh": "rnsh-0.1.4-py3-none-any.whl",
 }
 
 DEFAULT_TITLE = "RNode Bootstrap Console"
@@ -174,7 +174,7 @@ mf.write(help_redirect)
 mf.close()
 
 def optimise_manual(path):
-    pm = 140
+    pm = 110
     scale_imgs = [
         ("_images/board_rnodev2.png", pm),
         ("_images/board_rnode.png", pm),
@@ -208,6 +208,10 @@ def optimise_manual(path):
         "_static/_sphinx_javascript_frameworks_compat.js",
         "_static/scripts/furo.js.LICENSE.txt",
         "_static/styles/furo-extensions.css.map",
+        # "_static/pygments.css",
+        # "_static/language_data.js",
+        # "_static/searchtools.js",
+        # "searchindex.js",
     ]
     for file in remove_files:
         fp = path+"/"+file
