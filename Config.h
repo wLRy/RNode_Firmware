@@ -195,7 +195,7 @@
 		uint32_t last_gpio_nonce = 0;
 		uint32_t gpio_off_millis = 0xFFFFFFFF;
 		uint32_t reset_millis = 0xFFFFFFFF;
-		const char * MY_LORA_TO_GPIO_ID = "0005";
+		const char * MY_LORA_TO_GPIO_ID = "0006";
 	#endif
 
 	// Boot flags
