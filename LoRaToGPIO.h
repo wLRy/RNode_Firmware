@@ -8,6 +8,7 @@ const uint8_t CMD_READ = 2;
 const uint8_t CMD_DISPLAY_INTENSITY = 3;
 const uint8_t CMD_READ_BATTERY = 4;
 const uint8_t CMD_RESTART = 5;
+const uint8_t CMD_ANALOG_READ = 6;
 const char * GPIO_RESP_PREFIX = "gpiorsp";
 const int GPIO_RESP_PREFIX_LEN = 7;
 const int MY_LORA_TO_GPIO_ID_SIZE = 4;
@@ -115,6 +116,10 @@ void updateLoraToGpio() {
             uint32_t voltage = uint32_t(battery_voltage * 1000);
             serialCallback(voltage & 0xff);
             serialCallback((voltage >> 8) & 0xff);
+        } else if (last_gpio_command == CMD_ANALOG_READ) {
+            uint32_t result = analogRead(last_gpio);
+            serialCallback(result & 0xff);
+            serialCallback((result >> 8) & 0xff);
         }
         serialCallback(currentTime & 0xff);
         serialCallback((currentTime >> 8) & 0xff);
