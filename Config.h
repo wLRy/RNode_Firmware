@@ -193,8 +193,11 @@
 		uint8_t last_gpio_value = 255;
 		uint8_t last_gpio_command = 255;
 		uint32_t last_gpio_nonce = 0;
-		uint32_t gpio_off_millis = 0xFFFFFFFF;
 		uint32_t reset_millis = 0xFFFFFFFF;
+		#define MAX_GPIO_EVENTS 8
+        struct GpioOffEvent { uint8_t pin; uint32_t offMillis; };
+        GpioOffEvent gpioOffEvents[MAX_GPIO_EVENTS] = {};
+        uint8_t      gpioOffEventCount             = 0;
 		const char * MY_LORA_TO_GPIO_ID = "0006";
 	#endif
 

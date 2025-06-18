@@ -66,15 +66,26 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
         pinMode(last_gpio, OUTPUT);
         if (last_gpio_value) {
             digitalWrite(last_gpio, HIGH);
-            if (i + 4 <= len) {
-                //Little endian duration
+            // schedule an off-event if a little-endian duration is present
+            if (i + 4 <= len && gpioOffEventCount < MAX_GPIO_EVENTS) {
                 uint32_t durationMillis = buf[i++];
                 durationMillis |= (buf[i++] << 8);
                 durationMillis |= (buf[i++] << 16);
                 durationMillis |= (buf[i++] << 24);
-                gpio_off_millis = millis() + durationMillis;
+                gpioOffEvents[gpioOffEventCount++] = { last_gpio, millis() + durationMillis };
             }
         } else {
+            // explicit low: cancel any pending off‐event for this same pin
+            for (int j = 0; j < gpioOffEventCount; ++j) {
+                if (gpioOffEvents[j].pin == last_gpio) {
+                    // remove event at j
+                    for (int k = j; k + 1 < gpioOffEventCount; ++k) {
+                        gpioOffEvents[k] = gpioOffEvents[k+1];
+                    }
+                    --gpioOffEventCount;
+                    break;
+                }
+            }
             digitalWrite(last_gpio, LOW);
         }
     }
@@ -82,10 +93,20 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
 
 void updateLoraToGpio() {
     uint32_t currentTime = millis();
-    if (currentTime > gpio_off_millis) {
-        last_gpio_value = 255;
-        digitalWrite(last_gpio, LOW);
-        gpio_off_millis = 0xFFFFFFFF;
+    // process our off-event queue
+    for (int idx = 0; idx < gpioOffEventCount; ) {
+        if (currentTime > gpioOffEvents[idx].offMillis) {
+            pinMode(gpioOffEvents[idx].pin, OUTPUT);
+            digitalWrite(gpioOffEvents[idx].pin, LOW);
+            // remove this event
+            for (int j = idx; j + 1 < gpioOffEventCount; ++j) {
+                gpioOffEvents[j] = gpioOffEvents[j+1];
+            }
+            --gpioOffEventCount;
+            // do not advance idx, since entries shifted
+        } else {
+            ++idx;
+        }
     }
     if (currentTime > reset_millis) {
         reset_millis = 0xFFFFFFFF;
@@ -132,6 +153,3 @@ void updateLoraToGpio() {
 }
 
 #endif
-
-
-
