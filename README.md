@@ -1,4 +1,4 @@
-***Important!** This repository is currently functioning as a stable reference for the default RNode Firmware, and only receives bugfix and security updates. Further development, new features and expanded board support is now happening at the [RNode Firmware Community Edition](https://github.com/liberatedsystems/RNode_Firmware_CE) repository, and is maintained by [Liberated Systems](https://github.com/liberatedsystems). Thanks for all contributions so far!*
+***Important!** This repository is currently functioning as a stable reference for the default RNode Firmware, and only receives bugfix and security updates. Further development, new features and expanded board support is now happening at the [RNode Firmware Community Edition](https://github.com/liberatedsystems/RNode_Firmware_CE) repository, and is maintained by [Liberated Embedded Systems](https://github.com/liberatedsystems). Thanks for all contributions so far!*
 
 # RNode Firmware
 
@@ -16,15 +16,7 @@ The RNode system is primarily software, which *transforms* different kinds of av
 
 ## Latest Release
 
-The latest release, installable through `rnodeconf`, is version `1.72`. This release brings the following changes:
-
-- Added support for flashing T3S3 boards
-- Added deep sleep support on T3S3
-- Various quality updates for nRF / RAK4631
-- Fixed a bug with antenna switch utilisation on RAK4631
-- Updated console image to include latest packages
-
-You must have at least version `2.1.3` of `rnodeconf` installed to update the RNode Firmware to version `1.72`. Get it by updating the `rns` package to at least version `0.7.5`.
+The latest release, installable through `rnodeconf`, is version `1.82`. You must have at least version `2.4.1` of `rnodeconf` installed to update the RNode Firmware to version `1.82`. Get it by updating the `rns` package to at least version `0.9.4`.
 
 ## A Self-Replicating System
 
@@ -70,24 +62,29 @@ It's easy to create your own RNodes from one of the supported development boards
 
 The RNode Firmware supports the following boards:
 
-- Handheld v2.x RNodes from [unsigned.io](https://unsigned.io/shop/product/handheld-rnode)
-- Original v1.x RNodes from [unsigned.io](https://unsigned.io/shop/product/rnode)
 - LilyGO T-Beam v1.1 devices with SX1276/8 LoRa chips
 - LilyGO T-Beam v1.1 devices with SX1262/8 LoRa chips
+- LilyGO T-Beam Supreme devices
+- LilyGO T-Deck devices (currently display is disabled)
 - LilyGO LoRa32 v1.0 devices
 - LilyGO LoRa32 v2.0 devices
 - LilyGO LoRa32 v2.1 devices (with and without TCXO)
+- LilyGO T3S3 devices with SX1276/8 LoRa chips
+- LilyGO T3S3 devices with SX1262/8 LoRa chips
+- LilyGO T3S3 devices with SX1280 LoRa chips
+- LilyGO T-Echo devices
 - Heltec LoRa32 v2 devices
 - Heltec LoRa32 v3 devices
+- Heltec T114 devices
+- RAK4631 devices
+- SeeedStudio XIAO ESP32S3 devices (with Wio-SX1262)
 - Homebrew RNodes based on ATmega1284p boards
 - Homebrew RNodes based on ATmega2560 boards
 - Homebrew RNodes based on Adafruit Feather ESP32 boards
 - Homebrew RNodes based on generic ESP32 boards
 
 ## Supported Transceiver Modules
-The RNode Firmware supports all transceiver modules based on **Semtech SX1276** or **Semtech SX1278** chips, that have an **SPI interface** and expose the **DIO_0** interrupt pin from the chip.
-
-Support for **SX1262**, **SX1268** and **SX1280** is being implemented. Please support the project with donations if you want this faster!
+The RNode Firmware supports all transceiver modules based on Semtech **SX1276**, **SX1278**, **SX1262**, **SX1268** and **SX1280** chips, that have an **SPI interface** and expose the relevant **DIO** interrupt pins from the chip.
 
 ## Getting Started Fast
 You can download and flash the firmware to all the supported boards using the [RNode Config Utility](https://github.com/markqvist/rnodeconfigutil). All firmware releases are now handled and installed directly through the `rnodeconf` utility, which is included in the `rns` package. It can be installed via `pip`:
@@ -100,6 +97,8 @@ pip install rns --upgrade
 rnodeconf --autoinstall
 ```
 
+For most of the supported device types, it is also possible to use [Liam Cottle's Web-based RNode Flasher](https://liamcottle.github.io/rnode-flasher/). This option may be easier if you're not familiar with using a command line interface.
+
 For more detailed instruction and in-depth guides, you can have a look at some of these resources:
 
 - Create a [basic RNode from readily available development boards](https://unsigned.io/guides/2022_01_25_installing-rnode-firmware-on-supported-devices.html)
@@ -107,7 +106,12 @@ For more detailed instruction and in-depth guides, you can have a look at some o
 - Learn the basics on how to [create and build your own RNode designs](https://unsigned.io/guides/2022_01_26_how-to-make-your-own-rnodes.html) from scratch
 - Once you've got the hang of it, start building RNodes for your community, or [even for selling them](https://unsigned.io/sell_rnodes.html)
 
-If you would rather just buy a pre-made unit, you can visit [my shop](https://unsigned.io/shop) and purchase my particular version of the [Handheld RNode](https://unsigned.io/shop/handheld-rnode/), which I can assure you is made to the highest quality, and with a lot of care.
+If you would rather just buy a pre-made unit, you can visit one of the community vendors that produce and sell RNodes:
+
+- [Liberated Embedded Systems](https://store.liberatedsystems.co.uk/)
+- [Simply Equipped](https://simplyequipped.com/)
+
+If you'd like to have your shop added to this list, let me know.
 
 ## Support RNode Development
 You can help support the continued development of open, free and private communications systems by donating via one of the following channels:
@@ -116,15 +120,16 @@ You can help support the continued development of open, free and private communi
   ```
   84FpY1QbxHcgdseePYNmhTHcrgMX4nFfBYtz2GKYToqHVVhJp8Eaw1Z1EedRnKD19b3B8NiLCGVxzKV17UMmmeEsCrPyA5w
   ```
-- Ethereum
-  ```
-  0xFDabC71AC4c0C78C95aDDDe3B4FA19d6273c5E73
-  ```
 - Bitcoin
   ```
-  35G9uWVzrpJJibzUwpNUQGQNFzLirhrYAH
+  bc1p4a6axuvl7n9hpapfj8sv5reqj8kz6uxa67d5en70vzrttj0fmcusgxsfk5
+  ```
+- Ethereum
+  ```
+  0xae89F3B94fC4AD6563F0864a55F9a697a90261ff
   ```
 - Ko-Fi: https://ko-fi.com/markqvist
+
 
 ## License & Use
 The RNode Firmware is Copyright © 2024 Mark Qvist / [unsigned.io](https://unsigned.io), and is made available under the **GNU General Public License v3.0**. The source code includes an SX1276 driver that is released under MIT License, and Copyright © 2018 Sandeep Mistry / Mark Qvist.
