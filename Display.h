@@ -792,8 +792,8 @@ void draw_disp_area() {
           disp_area.setCursor(2, 57);
           disp_area.printf("%d:%d:%d", last_gpio_command, last_gpio, last_gpio_value);
           if (gpioOffEventCount > 0) {
-            disp_area.setCursor(40, 57);
-            disp_area.printf("%d", (gpioOffEvents[0].offMillis - millis()) / 1000);
+            disp_area.setCursor(36, 57);
+            disp_area.printf("%d|%d", gpioOffEvents[0].pin, (gpioOffEvents[0].offMillis - millis()) / 1000);
           }
         #else
           disp_area.setCursor(2, 46);

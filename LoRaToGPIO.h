@@ -9,6 +9,7 @@ const uint8_t CMD_DISPLAY_INTENSITY = 3;
 const uint8_t CMD_READ_BATTERY = 4;
 const uint8_t CMD_RESTART = 5;
 const uint8_t CMD_ANALOG_READ = 6;
+const uint8_t CMD_TIME_TO_OFF = 7;
 const char * GPIO_RESP_PREFIX = "gpiorsp";
 const int GPIO_RESP_PREFIX_LEN = 7;
 const int MY_LORA_TO_GPIO_ID_SIZE = 4;
@@ -141,6 +142,23 @@ void updateLoraToGpio() {
             uint32_t result = analogRead(last_gpio);
             serial_callback(result & 0xff);
             serial_callback((result >> 8) & 0xff);
+        } else if (last_gpio_command == CMD_TIME_TO_OFF) {
+            // find any pending off‐event for last_gpio
+            uint32_t remaining = 0;
+            for (int j = 0; j < gpioOffEventCount; ++j) {
+                if (gpioOffEvents[j].pin == last_gpio) {
+                    uint32_t offTime = gpioOffEvents[j].offMillis;
+                    if (offTime > currentTime) {
+                        remaining = offTime - currentTime;
+                    }
+                    break;
+                }
+            }
+            // return remaining ms as little‐endian 32‐bit
+            serial_callback(remaining & 0xff);
+            serial_callback((remaining >> 8) & 0xff);
+            serial_callback((remaining >> 16) & 0xff);
+            serial_callback((remaining >> 24) & 0xff);
         }
         serial_callback(currentTime & 0xff);
         serial_callback((currentTime >> 8) & 0xff);
