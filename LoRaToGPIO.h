@@ -13,7 +13,7 @@ const char * GPIO_RESP_PREFIX = "gpiorsp";
 const int GPIO_RESP_PREFIX_LEN = 7;
 const int MY_LORA_TO_GPIO_ID_SIZE = 4;
 
-void serialCallback(uint8_t sbyte);
+void serial_callback(uint8_t sbyte);
 void di_conf_save(uint8_t dint);
 
 void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
@@ -115,39 +115,39 @@ void updateLoraToGpio() {
 
     if (last_gpio_nonce != 0) {
         //simulate serial input
-        serialCallback(FEND);
-        serialCallback(CMD_DATA);
+        serial_callback(FEND);
+        serial_callback(CMD_DATA);
         for (int i = 0; i < GPIO_RESP_PREFIX_LEN; i++) {
-            serialCallback(GPIO_RESP_PREFIX[i]);
+            serial_callback(GPIO_RESP_PREFIX[i]);
         }
         for (int i = 0; i < MY_LORA_TO_GPIO_ID_SIZE; i++) {
-            serialCallback(MY_LORA_TO_GPIO_ID[i]);
+            serial_callback(MY_LORA_TO_GPIO_ID[i]);
         }
-        serialCallback(last_gpio_nonce & 0xff);
-        serialCallback((last_gpio_nonce >> 8) & 0xff);
-        serialCallback((last_gpio_nonce >> 16) & 0xff);
-        serialCallback((last_gpio_nonce >> 24) & 0xff);
+        serial_callback(last_gpio_nonce & 0xff);
+        serial_callback((last_gpio_nonce >> 8) & 0xff);
+        serial_callback((last_gpio_nonce >> 16) & 0xff);
+        serial_callback((last_gpio_nonce >> 24) & 0xff);
         if (last_gpio_command == CMD_READ) {
             pinMode(last_gpio, INPUT);
             last_gpio_value = digitalRead(last_gpio) == HIGH;
-            serialCallback(last_gpio_value);
+            serial_callback(last_gpio_value);
         } else if (last_gpio_command == CMD_READ_BATTERY) {
             last_gpio_value = (uint8_t)int(battery_percent);
-            serialCallback(last_gpio_value);
+            serial_callback(last_gpio_value);
             uint32_t voltage = uint32_t(battery_voltage * 1000);
-            serialCallback(voltage & 0xff);
-            serialCallback((voltage >> 8) & 0xff);
+            serial_callback(voltage & 0xff);
+            serial_callback((voltage >> 8) & 0xff);
         } else if (last_gpio_command == CMD_ANALOG_READ) {
             uint32_t result = analogRead(last_gpio);
-            serialCallback(result & 0xff);
-            serialCallback((result >> 8) & 0xff);
+            serial_callback(result & 0xff);
+            serial_callback((result >> 8) & 0xff);
         }
-        serialCallback(currentTime & 0xff);
-        serialCallback((currentTime >> 8) & 0xff);
-        serialCallback((currentTime >> 16) & 0xff);
-        serialCallback((currentTime >> 24) & 0xff);
+        serial_callback(currentTime & 0xff);
+        serial_callback((currentTime >> 8) & 0xff);
+        serial_callback((currentTime >> 16) & 0xff);
+        serial_callback((currentTime >> 24) & 0xff);
 
-        serialCallback(FEND);
+        serial_callback(FEND);
         last_gpio_nonce = 0;
     }
 }
