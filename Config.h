@@ -227,7 +227,7 @@
         struct GpioOffEvent { uint8_t pin; uint32_t offMillis; };
         GpioOffEvent gpioOffEvents[MAX_GPIO_EVENTS] = {};
         uint8_t      gpioOffEventCount             = 0;
-		const char * MY_LORA_TO_GPIO_ID = "0006";
+		const char * MY_LORA_TO_GPIO_ID = "0003";
 	#endif
 
 	// Boot flags
