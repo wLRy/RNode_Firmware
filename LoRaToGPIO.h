@@ -64,6 +64,20 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
     last_gpio = buf[i++];
     if (last_gpio_command == CMD_WRITE) {
         last_gpio_value = buf[i++];
+        // cancel any pending off‐event for this same pin
+        for (int j = 0; j < gpioOffEventCount; ++j) {
+            if (gpioOffEvents[j].pin == last_gpio) {
+                // remove event at j
+                for (int k = j; k + 1 < gpioOffEventCount; ++k) {
+                    gpioOffEvents[k] = gpioOffEvents[k+1];
+                }
+                if (gpioOffEventCount > 0) {
+                    --gpioOffEventCount;
+                } else {
+                    break;
+                }
+            }
+        }
         pinMode(last_gpio, OUTPUT);
         if (last_gpio_value) {
             digitalWrite(last_gpio, HIGH);
@@ -76,17 +90,6 @@ void parseLoRaPacketAndExecGpioCommand(const uint8_t* buf, uint16_t len) {
                 gpioOffEvents[gpioOffEventCount++] = { last_gpio, millis() + durationMillis };
             }
         } else {
-            // explicit low: cancel any pending off‐event for this same pin
-            for (int j = 0; j < gpioOffEventCount; ++j) {
-                if (gpioOffEvents[j].pin == last_gpio) {
-                    // remove event at j
-                    for (int k = j; k + 1 < gpioOffEventCount; ++k) {
-                        gpioOffEvents[k] = gpioOffEvents[k+1];
-                    }
-                    --gpioOffEventCount;
-                    break;
-                }
-            }
             digitalWrite(last_gpio, LOW);
         }
     }
@@ -103,7 +106,11 @@ void updateLoraToGpio() {
             for (int j = idx; j + 1 < gpioOffEventCount; ++j) {
                 gpioOffEvents[j] = gpioOffEvents[j+1];
             }
-            --gpioOffEventCount;
+            if (gpioOffEventCount > 0) {
+                --gpioOffEventCount;
+            } else {
+                break;
+            }
             // do not advance idx, since entries shifted
         } else {
             ++idx;
@@ -143,7 +150,7 @@ void updateLoraToGpio() {
             serial_callback(result & 0xff);
             serial_callback((result >> 8) & 0xff);
         } else if (last_gpio_command == CMD_TIME_TO_OFF) {
-            // find any pending off‐event for last_gpio
+            // find a pending off‐event for last_gpio
             uint32_t remaining = 0;
             for (int j = 0; j < gpioOffEventCount; ++j) {
                 if (gpioOffEvents[j].pin == last_gpio) {
@@ -159,6 +166,7 @@ void updateLoraToGpio() {
             serial_callback((remaining >> 8) & 0xff);
             serial_callback((remaining >> 16) & 0xff);
             serial_callback((remaining >> 24) & 0xff);
+            serial_callback(gpioOffEventCount & 0xff);
         }
         serial_callback(currentTime & 0xff);
         serial_callback((currentTime >> 8) & 0xff);
